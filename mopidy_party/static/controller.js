@@ -25,7 +25,7 @@ angular.module('partyApp', [])
     'callingConvention' : 'by-position-or-by-name'
   });
 
-  // Adding listenners
+  // Adding listeners
 
   mopidy.on('state:online', function () {
     mopidy.playback
@@ -82,44 +82,61 @@ angular.module('partyApp', [])
 
   $scope.search = function(){
 
-    if(!$scope.searchField)
-      return;
-
     $scope.message = [];
     $scope.loading = true;
 
-    mopidy.library.search({
-      'any' : [$scope.searchField]
-    }).done(function(res){
+    if(!$scope.searchField)
+      mopidy.library.browse({'uri' : None}).done($scope.handleBrowseResult);
+      return;
 
-      $scope.loading = false;
-      $scope.tracks  = [];
+    mopidy.library.search({'any' : [$scope.searchField]}).done($scope.handleSearchResult);
+  };
+    
+  $scope.handleSearchResult = function(res){
 
-      var _index = 0;
-      var _found = true;
-      while(_found){
-        _found = false;
-        for(var i = 0; i < res.length; i++){
-          if(res[i].tracks && res[i].tracks[_index]){
-            $scope.tracks.push(res[i].tracks[_index]);
-            _found = true;
-            mopidy.tracklist.filter({'uri': [res[i].tracks[_index].uri]}).done(function(matches){
-    if (matches.length) {
-      for (var i = 0; i < $scope.tracks.length; i++)
-      {
-        if ($scope.tracks[i].uri == matches[0].track.uri)
-          $scope.tracks[i].disabled = true;
-      }
-      $scope.$apply();
+    $scope.loading = false;
+    $scope.tracks  = [];
+
+    var _index = 0;
+    var _found = true;
+    while(_found){
+      _found = false;
+      for(var i = 0; i < res.length; i++){
+        if(res[i].tracks && res[i].tracks[_index]){
+          $scope.tracks.push(res[i].tracks[_index]);
+          _found = true;
+          mopidy.tracklist.filter({'uri': [res[i].tracks[_index].uri]}).done(function(matches){
+  if (matches.length) {
+    for (var i = 0; i < $scope.tracks.length; i++)
+    {
+      if ($scope.tracks[i].uri == matches[0].track.uri)
+        $scope.tracks[i].disabled = true;
     }
-      });
-          }
-        }
-        _index++;
-      }
-
-      $scope.$apply();
+    $scope.$apply();
+  }
     });
+        }
+      }
+      _index++;
+    }
+
+    $scope.$apply();
+  };
+  
+  $scope.handleBrowseResult = function(res) {
+    
+    $scope.loading = false;
+    $scope.tracks  = [];
+    
+    for(var i = 0; i < res.length; i++){
+      if(res[i].type == mopidy.models.Ref.TRACK) {
+        mopidy.library.lookup({'uri': res[i].uri}).done(function(found){
+          $scope.tracks.push(found);
+          $scope.$apply();
+        });
+      }
+    }
+    $scope.$apply();
   };
 
   $scope.addTrack = function(track){
